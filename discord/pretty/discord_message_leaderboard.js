@@ -242,7 +242,7 @@ async function processGroupMessageLeaderboard(data) {
 
         let leaderboardText = `**Group Name:** ${channelName}\n**Total messages:** ${totalMessages}\n\n**Leaderboard:** 🏆\n`;
         messageCounts.forEach((messageData, index) => {
-          const percentage = ((messageData.messageCount / totalMessages) * 100).toFixed(1); // Changed to 1 decimal place
+          const percentage = ((messageData.messageCount / totalMessages) * 100).toFixed(1);
           leaderboardText += `${index + 1}. **${messageData.username}**: ${messageData.messageCount} (${percentage}%)\n`;
         });
 
