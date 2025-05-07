@@ -1,7 +1,5 @@
 let authToken;
 
-// Attempt to extract the auth token.  This method is not officially supported and
-// may break if Discord changes their internal structure.
 try {
   authToken = window.webpackChunkdiscord_app.push([
     [Math.random()], {},
@@ -18,15 +16,14 @@ try {
           }
         }
       }
-      return null; // Return null if token is not found
+      return null;
     }
   ]);
   window.webpackChunkdiscord_app.pop();
 } catch (error) {
   console.error("Failed to extract auth token:", error);
-  // It's critical to have the token.  The script cannot proceed without it.
   alert("Failed to obtain Discord authorization token. The script cannot run.  Ensure you are logged into Discord in your browser.");
-  throw error; // Stop execution.
+  throw error;
 }
 
 if (!authToken) {
@@ -64,11 +61,11 @@ async function fetchUserInfo() {
     const user = await response.json();
     return ({
       id: user.id,
-      username: user.global_name || user.username // Use global_name if available, otherwise use username
+      username: user.global_name || user.username
     });
   } catch (error) {
     console.error("Error fetching user info:", error);
-    throw error; // Re-throw the error to be caught by the caller
+    throw error;
   }
 }
 
@@ -103,7 +100,7 @@ async function fetchMessageCount(userId, username) {
     });
   } catch (error) {
     console.error(`Error fetching message count for ${username}:`, error);
-    throw error; // Re-throw the error
+    throw error;
   }
 }
 
@@ -133,7 +130,7 @@ async function sendLeaderboardMessage(messageOptions) {
     return response;
   } catch (error) {
     console.error("Error sending message:", error);
-    throw error; // Re-throw the error
+    throw error;
   }
 }
 
@@ -152,28 +149,35 @@ async function processDirectMessageLeaderboard(data) {
   const userInfo = await fetchUserInfo();
   const userId = userInfo.id;
   const username = userInfo.username;
-  // Handle the case where recipients is undefined or empty.
   const otherUser = data.channels[0].recipients?.find(user => user.id !== userId);
   if (!otherUser) {
     const noOtherUserMessage = "No other user found in this direct message channel.";
     console.warn(noOtherUserMessage);
-    return sendLeaderboardMessage({ content: noOtherUserMessage, tts: false }); // Send a message to Discord
+    return sendLeaderboardMessage({ content: noOtherUserMessage, tts: false });
   }
   const totalMessages = data.total_results;
   const messageRequests = [
     fetchMessageCount(userId, username),
-    fetchMessageCount(otherUser.id, otherUser.global_name || otherUser.username) // added fallback
+    fetchMessageCount(otherUser.id, otherUser.global_name || otherUser.username)
   ];
   try {
     const results = await Promise.all(messageRequests);
     results.sort((a, b) => b.messageCount - a.messageCount);
 
-    // Customizable Leaderboard Message
-    let leaderboardText = `**DM with ${otherUser.global_name || otherUser.username}**\n**Total messages:** ${totalMessages}\n\n**Leaderboard:** 🏆\n`;
-    results.forEach((result_1, index) => {
-      const percentage = ((result_1.messageCount / totalMessages) * 100).toFixed(1); // Changed to 1 decimal place
-      leaderboardText += `${index + 1}. **${result_1.username}**: ${result_1.messageCount} (${percentage}%)\n`;
+    let otherMessagesCount = totalMessages;
+    results.forEach(result => {
+      otherMessagesCount -= result.messageCount;
     });
+
+    let leaderboardText = `**DM with ${otherUser.global_name || otherUser.username}**\n**Total messages:** ${totalMessages}\n\n**Leaderboard:** 🏆\n`;
+    results.forEach((result, index) => {
+      const percentage = ((result.messageCount / totalMessages) * 100).toFixed(1);
+      leaderboardText += `${index + 1}. **${result.username}**: ${result.messageCount} (${percentage}%)\n`;
+    });
+    if (otherMessagesCount > 0) {
+      const otherPercentage = ((otherMessagesCount / totalMessages) * 100).toFixed(1);
+      leaderboardText += `-# Other: ${otherMessagesCount} (${otherPercentage}%)\n`;
+    }
 
     const messageOptions_1 = {
       content: leaderboardText,
@@ -182,7 +186,7 @@ async function processDirectMessageLeaderboard(data) {
     return await sendLeaderboardMessage(messageOptions_1);
   } catch (error) {
     console.error("Error processing DM leaderboard:", error);
-    throw error; // Propagate the error
+    throw error;
   }
 }
 
@@ -206,7 +210,6 @@ async function processGroupMessageLeaderboard(data) {
     const username = userInfo.username;
     const messageCounts = [];
 
-    // Handle undefined or empty recipients
     const recipientRequests = (recipients || []).map(async recipient => {
       const recipientName = recipient.global_name || recipient.username;
       try {
@@ -225,7 +228,6 @@ async function processGroupMessageLeaderboard(data) {
 
     return Promise.all(recipientRequests)
       .then(() => {
-        // Ensure messageCounts has data before sorting.
         if (messageCounts.length === 0) {
           const noMessagesMessage = "No messages found in this group channel.";
           console.warn(noMessagesMessage);
@@ -233,13 +235,21 @@ async function processGroupMessageLeaderboard(data) {
         }
         messageCounts.sort((a, b) => b.messageCount - a.messageCount);
 
-        // Customizable Leaderboard Message
+        let otherMessagesCount = totalMessages;
+        messageCounts.forEach(result => {
+          otherMessagesCount -= result.messageCount;
+        });
+
         let leaderboardText = `**Group Name:** ${channelName}\n**Total messages:** ${totalMessages}\n\n**Leaderboard:** 🏆\n`;
         messageCounts.forEach((messageData, index) => {
           const percentage = ((messageData.messageCount / totalMessages) * 100).toFixed(1); // Changed to 1 decimal place
           leaderboardText += `${index + 1}. **${messageData.username}**: ${messageData.messageCount} (${percentage}%)\n`;
         });
 
+        if (otherMessagesCount > 0) {
+          const otherPercentage = ((otherMessagesCount / totalMessages) * 100).toFixed(1);
+          leaderboardText += `-# Other: ${otherMessagesCount} (${otherPercentage}%)\n`;
+        }
         const messageOptions = {
           content: leaderboardText,
           tts: false,
@@ -248,7 +258,7 @@ async function processGroupMessageLeaderboard(data) {
       })
       .catch(error => {
         console.error("Error processing group leaderboard:", error);
-        throw error; // Propagate the error
+        throw error;
       });
   });
 }
