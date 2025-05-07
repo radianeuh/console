@@ -45,32 +45,31 @@ if (!channelId) {
  * @returns {Promise<{id: string, username: string}>} - A promise that resolves to an object containing the user's ID and username.
  * @throws {Error} - Throws an error if the fetch request fails.
  */
-function fetchUserInfo() {
-  return fetch("https://discord.com/api/v9/users/@me", {
-    headers: {
-      accept: "*/*",
-      "accept-language": "en-US,en;q=0.9",
-      authorization: authToken,
-      "content-type": "application/json"
-    },
-    method: "GET",
-    mode: "cors",
-    credentials: "include"
-  })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`Failed to fetch user info: ${response.status} ${response.statusText}`);
-      }
-      return response.json();
-    })
-    .then(user => ({
+async function fetchUserInfo() {
+  try {
+    const response = await fetch("https://discord.com/api/v9/users/@me", {
+      headers: {
+        accept: "*/*",
+        "accept-language": "en-US,en;q=0.9",
+        authorization: authToken,
+        "content-type": "application/json"
+      },
+      method: "GET",
+      mode: "cors",
+      credentials: "include"
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch user info: ${response.status} ${response.statusText}`);
+    }
+    const user = await response.json();
+    return ({
       id: user.id,
       username: user.global_name || user.username // Use global_name if available, otherwise use username
-    }))
-    .catch(error => {
-      console.error("Error fetching user info:", error);
-      throw error; // Re-throw the error to be caught by the caller
     });
+  } catch (error) {
+    console.error("Error fetching user info:", error);
+    throw error; // Re-throw the error to be caught by the caller
+  }
 }
 
 /**
@@ -80,33 +79,32 @@ function fetchUserInfo() {
  * @returns {Promise<{username: string, userId: string, messageCount: number}>} - A promise that resolves to an object containing the username, user ID, and message count.
  * @throws {Error} - Throws an error if the fetch request fails.
  */
-function fetchMessageCount(userId, username) {
-  return fetch(`https://discord.com/api/v9/channels/${channelId}/messages/search?min_id=0&author_id=${userId}`, {
-    headers: {
-      accept: "*/*",
-      "accept-language": "en-US,en;q=0.9",
-      authorization: authToken,
-      "content-type": "application/json"
-    },
-    method: "GET",
-    mode: "cors",
-    credentials: "include"
-  })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`Failed to fetch message count for user ${username}: ${response.status} ${response.statusText}`);
-      }
-      return response.json();
-    })
-    .then(data => ({
+async function fetchMessageCount(userId, username) {
+  try {
+    const response = await fetch(`https://discord.com/api/v9/channels/${channelId}/messages/search?min_id=0&author_id=${userId}`, {
+      headers: {
+        accept: "*/*",
+        "accept-language": "en-US,en;q=0.9",
+        authorization: authToken,
+        "content-type": "application/json"
+      },
+      method: "GET",
+      mode: "cors",
+      credentials: "include"
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch message count for user ${username}: ${response.status} ${response.statusText}`);
+    }
+    const data = await response.json();
+    return ({
       username: username,
       userId: userId,
       messageCount: data.total_results
-    }))
-    .catch(error => {
-      console.error(`Error fetching message count for ${username}:`, error);
-      throw error; // Re-throw the error
     });
+  } catch (error) {
+    console.error(`Error fetching message count for ${username}:`, error);
+    throw error; // Re-throw the error
+  }
 }
 
 /**
@@ -115,29 +113,28 @@ function fetchMessageCount(userId, username) {
  * @returns {Promise<Response>} - A promise that resolves to the response from the fetch request.
  * @throws {Error} - Throws an error if the fetch request fails.
  */
-function sendLeaderboardMessage(messageOptions) {
-  return fetch(`https://discord.com/api/v9/channels/${channelId}/messages`, {
-    headers: {
-      accept: "*/*",
-      "accept-language": "en-US,en;q=0.9",
-      authorization: authToken,
-      "content-type": "application/json"
-    },
-    body: JSON.stringify(messageOptions),
-    method: "POST",
-    mode: "cors",
-    credentials: "include"
-  })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`Failed to send message: ${response.status} ${response.statusText}`);
-      }
-      return response;
-    })
-    .catch(error => {
-      console.error("Error sending message:", error);
-      throw error; // Re-throw the error
+async function sendLeaderboardMessage(messageOptions) {
+  try {
+    const response = await fetch(`https://discord.com/api/v9/channels/${channelId}/messages`, {
+      headers: {
+        accept: "*/*",
+        "accept-language": "en-US,en;q=0.9",
+        authorization: authToken,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(messageOptions),
+      method: "POST",
+      mode: "cors",
+      credentials: "include"
     });
+    if (!response.ok) {
+      throw new Error(`Failed to send message: ${response.status} ${response.statusText}`);
+    }
+    return response;
+  } catch (error) {
+    console.error("Error sending message:", error);
+    throw error; // Re-throw the error
+  }
 }
 
 /**
@@ -145,54 +142,48 @@ function sendLeaderboardMessage(messageOptions) {
  * @param {object} data - The data returned from the Discord API for the channel.
  * @returns {Promise<Response>} - A promise that resolves to the response from sending the leaderboard message.
  */
-function processDirectMessageLeaderboard(data) {
+async function processDirectMessageLeaderboard(data) {
   if (!data || !data.channels || data.channels.length === 0) {
     const errorMessage = "Invalid data structure for direct message channel.";
     console.error(errorMessage);
     return Promise.reject(new Error(errorMessage));
   }
 
-  return fetchUserInfo().then(userInfo => {
-    const userId = userInfo.id;
-    const username = userInfo.username;
+  const userInfo = await fetchUserInfo();
+  const userId = userInfo.id;
+  const username = userInfo.username;
+  // Handle the case where recipients is undefined or empty.
+  const otherUser = data.channels[0].recipients?.find(user => user.id !== userId);
+  if (!otherUser) {
+    const noOtherUserMessage = "No other user found in this direct message channel.";
+    console.warn(noOtherUserMessage);
+    return sendLeaderboardMessage({ content: noOtherUserMessage, tts: false }); // Send a message to Discord
+  }
+  const totalMessages = data.total_results;
+  const messageRequests = [
+    fetchMessageCount(userId, username),
+    fetchMessageCount(otherUser.id, otherUser.global_name || otherUser.username) // added fallback
+  ];
+  try {
+    const results = await Promise.all(messageRequests);
+    results.sort((a, b) => b.messageCount - a.messageCount);
 
-    // Handle the case where recipients is undefined or empty.
-    const otherUser = data.channels[0].recipients?.find(user => user.id !== userId);
-    if (!otherUser) {
-      const noOtherUserMessage = "No other user found in this direct message channel.";
-      console.warn(noOtherUserMessage);
-      return sendLeaderboardMessage({ content: noOtherUserMessage, tts: false }); // Send a message to Discord
-    }
+    // Customizable Leaderboard Message
+    let leaderboardText = `**DM with ${otherUser.global_name || otherUser.username}**\n**Total messages:** ${totalMessages}\n\n**Leaderboard:** 🏆\n`;
+    results.forEach((result_1, index) => {
+      const percentage = ((result_1.messageCount / totalMessages) * 100).toFixed(1); // Changed to 1 decimal place
+      leaderboardText += `${index + 1}. **${result_1.username}**: ${result_1.messageCount} (${percentage}%)\n`;
+    });
 
-    const totalMessages = data.total_results;
-
-    const messageRequests = [
-      fetchMessageCount(userId, username),
-      fetchMessageCount(otherUser.id, otherUser.global_name || otherUser.username) // added fallback
-    ];
-
-    return Promise.all(messageRequests)
-      .then(results => {
-        results.sort((a, b) => b.messageCount - a.messageCount);
-
-        // Customizable Leaderboard Message
-        let leaderboardText = `**DM with ${otherUser.global_name || otherUser.username}**\n**Total messages:** ${totalMessages}\n\n**Leaderboard:** 🏆\n`;
-        results.forEach((result, index) => {
-          const percentage = ((result.messageCount / totalMessages) * 100).toFixed(1); // Changed to 1 decimal place
-          leaderboardText += `${index + 1}. **${result.username}**: ${result.messageCount} (${percentage}%)\n`;
-        });
-
-        const messageOptions = {
-          content: leaderboardText,
-          tts: false,
-        };
-        return sendLeaderboardMessage(messageOptions);
-      })
-      .catch(error => {
-        console.error("Error processing DM leaderboard:", error);
-        throw error; // Propagate the error
-      });
-  });
+    const messageOptions_1 = {
+      content: leaderboardText,
+      tts: false,
+    };
+    return await sendLeaderboardMessage(messageOptions_1);
+  } catch (error) {
+    console.error("Error processing DM leaderboard:", error);
+    throw error; // Propagate the error
+  }
 }
 
 /**
@@ -200,7 +191,7 @@ function processDirectMessageLeaderboard(data) {
  * @param {object} data - The data returned from the Discord API for the channel.
  * @returns {Promise<Response>} - A promise that resolves to the response from sending the leaderboard message.
  */
-function processGroupMessageLeaderboard(data) {
+async function processGroupMessageLeaderboard(data) {
   if (!data || !data.channels || data.channels.length === 0) {
     const errorMessage = "Invalid data structure for group message channel.";
     console.error(errorMessage);
@@ -214,7 +205,7 @@ function processGroupMessageLeaderboard(data) {
     const userId = userInfo.id;
     const username = userInfo.username;
     const messageCounts = [];
-    
+
     // Handle undefined or empty recipients
     const recipientRequests = (recipients || []).map(async recipient => {
       const recipientName = recipient.global_name || recipient.username;
