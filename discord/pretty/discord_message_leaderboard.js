@@ -22,18 +22,29 @@ try {
   window.webpackChunkdiscord_app.pop();
 } catch (error) {
   console.error("Failed to extract auth token:", error);
-  alert("Failed to obtain Discord authorization token. The script cannot run.  Ensure you are logged into Discord in your browser.");
+  alert("Failed to obtain Discord authorization token. The script cannot run. Ensure you are logged into Discord in your browser.");
   throw error;
 }
 
 if (!authToken) {
-  alert("Could not retrieve Discord auth token.  Ensure you are logged in.");
+  alert("Could not retrieve Discord auth token. Ensure you are logged in.");
   throw new Error("Authentication token is missing.");
 }
 
 const channelId = window.location.pathname.split("/")[3];
-if (!channelId) {
-  alert("Invalid channel ID.  Please run this script in a Discord channel.");
+const guildId = window.location.pathname.split("/")[2];
+
+if (!channelId && !guildId) {
+  alert("Invalid channel or guild ID. Please run this script in a Discord channel or guild.");
+  throw new Error("Channel or Guild ID is missing.");
+}
+
+let isGuild = false;
+if (guildId && !isNaN(guildId)) {
+  isGuild = true;
+  alert("This script is currently designed to work in Direct Messages and Group Chats. Functionality for Guilds is under development and will be available soon!");
+} else if (!channelId || isNaN(channelId)) {
+  alert("Invalid channel ID. Please run this script in a Discord channel.");
   throw new Error("Channel ID is missing.");
 }
 
@@ -263,39 +274,39 @@ async function processGroupMessageLeaderboard(data) {
   });
 }
 
-
-
-fetch(`https://discord.com/api/v9/channels/${channelId}/messages/search?min_id=0`, {
-  headers: {
-    accept: "*/*",
-    "accept-language": "en-US,en;q=0.9",
-    authorization: authToken,
-    "content-type": "application/json",
-    "x-debug-options": "bugReporterEnabled",
-    "x-discord-locale": "en-US",
-    "x-discord-timezone": "Europe/Paris"
-  },
-  method: "GET",
-  mode: "cors",
-  credentials: "include"
-})
-  .then(response => {
-    if (!response.ok) {
-      throw new Error(`Failed to fetch channel data: ${response.status} ${response.statusText}`);
-    }
-    return response.json();
+if (!isGuild) {
+  fetch(`https://discord.com/api/v9/channels/${channelId}/messages/search?min_id=0`, {
+    headers: {
+      accept: "*/*",
+      "accept-language": "en-US,en;q=0.9",
+      authorization: authToken,
+      "content-type": "application/json",
+      "x-debug-options": "bugReporterEnabled",
+      "x-discord-locale": "en-US",
+      "x-discord-timezone": "Europe/Paris"
+    },
+    method: "GET",
+    mode: "cors",
+    credentials: "include"
   })
-  .then(data => {
-    if (!data || !data.channels || data.channels.length === 0) {
-      throw new Error("Invalid or empty channel data received.");
-    }
-    if (data.channels[0].type === 1) {
-      return processDirectMessageLeaderboard(data);
-    } else {
-      return processGroupMessageLeaderboard(data);
-    }
-  })
-  .catch(error => {
-    console.error("Error fetching channel data:", error);
-    alert(`An error occurred: ${error.message}.  Please check the console for details.`);
-  });
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`Failed to fetch channel data: ${response.status} ${response.statusText}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (!data || !data.channels || data.channels.length === 0) {
+        throw new Error("Invalid or empty channel data received.");
+      }
+      if (data.channels[0].type === 1) {
+        return processDirectMessageLeaderboard(data);
+      } else {
+        return processGroupMessageLeaderboard(data);
+      }
+    })
+    .catch(error => {
+      console.error("Error fetching channel data:", error);
+      alert(`An error occurred: ${error.message}. Please check the console for details.`);
+    });
+}
