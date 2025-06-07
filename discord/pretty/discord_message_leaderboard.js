@@ -1,36 +1,9 @@
-let authToken;
+delete window.$;
+let wpRequire = webpackChunkdiscord_app.push([[Symbol()], {}, r => r]);
+webpackChunkdiscord_app.pop();
+let api = Object.values(wpRequire.c).find(x => x?.exports?.tn?.get).exports.tn;
 
-try {
-  authToken = window.webpackChunkdiscord_app.push([
-    [Math.random()], {},
-    (moduleExports) => {
-      if (moduleExports.c) {
-        for (const module of Object.keys(moduleExports.c)
-          .map(key => moduleExports.c[key].exports)
-          .filter(exportedModule => exportedModule)) {
-          if (module.default && module.default.getToken !== undefined) {
-            return module.default.getToken();
-          }
-          if (module.getToken !== undefined) {
-            return module.getToken();
-          }
-        }
-      }
-      return null;
-    }
-  ]);
-  window.webpackChunkdiscord_app.pop();
-} catch (error) {
-  console.error("Failed to extract auth token:", error);
-  alert("Failed to obtain Discord authorization token. The script cannot run. Ensure you are logged into Discord in your browser.");
-  throw error;
-}
-
-if (!authToken) {
-  alert("Could not retrieve Discord auth token. Ensure you are logged in.");
-  throw new Error("Authentication token is missing.");
-}
-
+let authToken = null;
 const channelId = window.location.pathname.split("/")[3];
 const guildId = window.location.pathname.split("/")[2];
 
@@ -55,24 +28,11 @@ if (guildId && !isNaN(guildId)) {
  */
 async function fetchUserInfo() {
   try {
-    const response = await fetch("https://discord.com/api/v9/users/@me", {
-      headers: {
-        accept: "*/*",
-        "accept-language": "en-US,en;q=0.9",
-        authorization: authToken,
-        "content-type": "application/json"
-      },
-      method: "GET",
-      mode: "cors",
-      credentials: "include"
-    });
-    if (!response.ok) {
-      throw new Error(`Failed to fetch user info: ${response.status} ${response.statusText}`);
-    }
-    const user = await response.json();
+    const userResponse = await api.get({ url: `/users/@me` });
+    console.log("User info fetched successfully:", userResponse.body.id);
     return ({
-      id: user.id,
-      username: user.global_name || user.username
+      id: userResponse.body.id,
+      username: userResponse.body.global_name || userResponse.body.username
     });
   } catch (error) {
     console.error("Error fetching user info:", error);
@@ -89,17 +49,21 @@ async function fetchUserInfo() {
  */
 async function fetchMessageCount(userId, username) {
   try {
-    const response = await fetch(`https://discord.com/api/v9/channels/${channelId}/messages/search?min_id=0&author_id=${userId}`, {
-      headers: {
-        accept: "*/*",
-        "accept-language": "en-US,en;q=0.9",
-        authorization: authToken,
-        "content-type": "application/json"
-      },
-      method: "GET",
-      mode: "cors",
-      credentials: "include"
+    const response = await api.get({
+      url: `/channels/${channelId}/messages/search?min_id=0&author_id=${userId}`
     });
+    console.log(`Message count fetched for user ${username}:`, response.body.total_results);
+    // const response = await fetch(`https://discord.com/api/v9/channels/${channelId}/messages/search?min_id=0&author_id=${userId}`, {
+    //   headers: {
+    //     accept: "*/*",
+    //     "accept-language": "en-US,en;q=0.9",
+    //     authorization: authToken,
+    //     "content-type": "application/json"
+    //   },
+    //   method: "GET",
+    //   mode: "cors",
+    //   credentials: "include"
+    // });
     if (!response.ok) {
       throw new Error(`Failed to fetch message count for user ${username}: ${response.status} ${response.statusText}`);
     }
@@ -274,39 +238,19 @@ async function processGroupMessageLeaderboard(data) {
   });
 }
 
-if (!isGuild) {
-  fetch(`https://discord.com/api/v9/channels/${channelId}/messages/search?min_id=0`, {
-    headers: {
-      accept: "*/*",
-      "accept-language": "en-US,en;q=0.9",
-      authorization: authToken,
-      "content-type": "application/json",
-      "x-debug-options": "bugReporterEnabled",
-      "x-discord-locale": "en-US",
-      "x-discord-timezone": "Europe/Paris"
-    },
-    method: "GET",
-    mode: "cors",
-    credentials: "include"
-  })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`Failed to fetch channel data: ${response.status} ${response.statusText}`);
-      }
-      return response.json();
-    })
-    .then(data => {
-      if (!data || !data.channels || data.channels.length === 0) {
-        throw new Error("Invalid or empty channel data received.");
-      }
-      if (data.channels[0].type === 1) {
-        return processDirectMessageLeaderboard(data);
-      } else {
-        return processGroupMessageLeaderboard(data);
-      }
-    })
-    .catch(error => {
-      console.error("Error fetching channel data:", error);
-      alert(`An error occurred: ${error.message}. Please check the console for details.`);
-    });
+async function getChannelData(channelId) {
+  const channelData = await api.get({ url: `/channels/${channelId}/messages/search?min_id=0` });
+  console.log("Channel data fetched successfully:", channelData.body.channels);
+  if (!channelData || !channelData.body || !channelData.body.channels || channelData.body.channels.length === 0) {
+    throw new Error("Invalid or empty channel data received.");
+  }
+  if (channelData.body.channels[0].type === 1) {
+    return processDirectMessageLeaderboard(channelData.body);
+  }
+  return processGroupMessageLeaderboard(channelData.body);
 }
+
+getChannelData(channelId).catch(error => {
+  console.error("Error fetching channel data:", error);
+  alert(`An error occurred while fetching channel data: ${error.message}. Please check the console for details.`);
+});
