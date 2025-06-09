@@ -170,7 +170,7 @@
     const recipients = channelInfo.recipients || [];
 
     const userInfo = await fetchUserInfo();
-    const allParticipants = [...recipients.filter(r => r.id !== userInfo.id), userInfo]; // Ensure current user is included
+    const allParticipants = [...recipients.filter(r => r.id !== userInfo.id), userInfo];
 
     const messageCounts = [];
     await Promise.all(allParticipants.map(async participant => {
