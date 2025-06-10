@@ -5,7 +5,10 @@
   // Safely get webpack modules
   let wpRequire;
   try {
-    wpRequire = webpackChunkdiscord_app.push([[Symbol()], {}, r => r]);
+    wpRequire = webpackChunkdiscord_app.push([
+      [Symbol()], {},
+      r => r
+    ]);
     webpackChunkdiscord_app.pop(); // Clean up the pushed module
   } catch (e) {
     console.error("Failed to get webpack modules. Ensure you're in Discord.", e);
@@ -48,7 +51,9 @@
    */
   async function fetchUserInfo() {
     try {
-      const userResponse = await api.get({ url: `/users/@me` });
+      const userResponse = await api.get({
+        url: `/users/@me`
+      });
       return {
         id: userResponse.body.id,
         username: userResponse.body.global_name || userResponse.body.username
@@ -123,7 +128,10 @@
     if (!otherUser) {
       const noOtherUserMessage = "No other user found in this direct message channel.";
       console.warn(noOtherUserMessage);
-      return sendLeaderboardMessage({ content: noOtherUserMessage, tts: false });
+      return sendLeaderboardMessage({
+        content: noOtherUserMessage,
+        tts: false
+      });
     }
 
     const totalMessages = data.total_results;
@@ -149,7 +157,10 @@
       leaderboardText += `-# Other: ${otherMessagesCount} (${otherPercentage}%)\n`;
     }
 
-    return await sendLeaderboardMessage({ content: leaderboardText, tts: false });
+    return await sendLeaderboardMessage({
+      content: leaderboardText,
+      tts: false
+    });
   }
 
   /**
@@ -186,7 +197,10 @@
     if (messageCounts.length === 0) {
       const noMessagesMessage = "No message data could be retrieved for this group chat.";
       console.warn(noMessagesMessage);
-      return sendLeaderboardMessage({ content: noMessagesMessage, tts: false });
+      return sendLeaderboardMessage({
+        content: noMessagesMessage,
+        tts: false
+      });
     }
 
     messageCounts.sort((a, b) => b.messageCount - a.messageCount);
@@ -205,7 +219,10 @@
       leaderboardText += `-# Other: ${otherMessagesCount} (${otherPercentage}%)\n`;
     }
 
-    return await sendLeaderboardMessage({ content: leaderboardText, tts: false });
+    return await sendLeaderboardMessage({
+      content: leaderboardText,
+      tts: false
+    });
   }
 
   /**
@@ -214,7 +231,9 @@
    */
   async function getChannelData(channelId) {
     try {
-      const channelData = await api.get({ url: `/channels/${channelId}/messages/search?min_id=0` });
+      const channelData = await api.get({
+        url: `/channels/${channelId}/messages/search?min_id=0`
+      });
 
       if (!channelData?.body?.channels?.[0]) {
         throw new Error("Invalid or empty channel data received.");
