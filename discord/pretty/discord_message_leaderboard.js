@@ -17,7 +17,7 @@
   }
 
   // Get the Discord API object
-  const api = Object.values(wpRequire.c).find(x => x?.exports?.tn?.get)?.exports.tn;
+  const api = Object.values(wpRequire.c).find(x => x?.exports?.Bo?.get).exports.Bo;
 
   if (!api) {
     console.error("Discord API object not found. The script might be outdated or Discord's structure has changed.");
